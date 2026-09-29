@@ -1,0 +1,81 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+
+# Environment and Secrets (CRITICAL: NEVER COMMIT KEYS)
+.env
+.env.*
+!.env.example
+API Keys.txt
+*key*.txt
+*secret*.txt
+
+# Database & Storage
+*.db
+*.sqlite3
+phantom.db
+backend/phantom.db
+
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+.npm
+.eslintcache
+
+# Logs & Output
+output/
+backend/output/
+reports/
+logs/
+*.log
+output/*.json
+backend/output/*.json
+*.pdf
+*.html
+!frontend/index.html
+!package.json
+!frontend/package.json
+!frontend/package-lock.json
+!tsconfig.json
+!frontend/tsconfig.json
+!frontend/vercel.json
+
+# IDE & OS
+.vscode/
+.idea/
+.dist/
+.qodo/
+.DS_Store
+Thumbs.db
+
+# Testing
+htmlcov/
+.coverage
+.pytest_cache/

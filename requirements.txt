@@ -1,0 +1,13 @@
+dnspython>=2.6.0       # DNS queries: A, MX, NS, AXFR zone transfer
+requests>=2.31.0       # HTTP client: scraping, all API calls
+python-whois>=0.9.4    # WHOIS protocol (TCP port 43)
+shodan>=1.31.0         # Shodan API client
+netlas>=0.1.27 	       # Netlas API — DNS history, subdomain enum, host intel
+sublist3r>=1.0         # Passive subdomain OSINT aggregation
+beautifulsoup4>=4.12.0 # HTML parsing for email/tech extraction
+lxml>=5.1.0            # Fast XML/HTML parser (bs4 backend)
+ipwhois>=1.2.0         # IP WHOIS / ASN lookups
+reportlab>=4.1.0       # PDF report generation
+colorama>=0.4.6        # Cross-platform terminal colours
+tqdm>=4.66.0           # Progress bars
+tabulate>=0.9.0        # Table formatting in terminal
