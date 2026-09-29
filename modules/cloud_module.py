@@ -892,42 +892,45 @@ class CloudModule:
 
     def _print_summary(self, result: dict, exposed: list):
         """Print a clean summary of all cloud findings."""
-        print(f"\n  {Fore.CYAN}{'─'*55}")
-        print(f"  CLOUD DISCOVERY SUMMARY: {self.domain}")
-        print(f"  {'─'*55}{Style.RESET_ALL}")
+        try:
+            print(f"\n  {Fore.CYAN}{'-'*55}")
+            print(f"  CLOUD DISCOVERY SUMMARY: {self.domain}")
+            print(f"  {'-'*55}{Style.RESET_ALL}")
 
-        if exposed:
-            print(f"\n  {Fore.RED}{'!'*55}")
-            print(f"  [!!!] {len(exposed)} PUBLICLY ACCESSIBLE STORAGE FOUND:")
-            for b in exposed:
-                print(f"        ▸ [{b['provider']}] {b['url']}")
-                print(f"          {b['note']}")
-            print(f"  {'!'*55}{Style.RESET_ALL}")
-        else:
-            print(f"  {Fore.GREEN}[+] No public storage buckets found "
-                  f"in tested patterns{Style.RESET_ALL}")
+            if exposed:
+                print(f"\n  {Fore.RED}{'!'*55}")
+                print(f"  [!!!] {len(exposed)} PUBLICLY ACCESSIBLE STORAGE FOUND:")
+                for b in exposed:
+                    print(f"        * [{b['provider']}] {b['url']}")
+                    print(f"          {b['note']}")
+                print(f"  {'!'*55}{Style.RESET_ALL}")
+            else:
+                print(f"  {Fore.GREEN}[+] No public storage buckets found "
+                      f"in tested patterns{Style.RESET_ALL}")
 
-        netlas = result.get("netlas", {})
-        if not netlas.get("skipped"):
-            hosts = len(netlas.get("cloud_hosts", []))
-            h_ips = len(netlas.get("historical_ips", []))
-            certs = len(netlas.get("certificates", []))
-            print(f"  {Fore.BLUE}[*] Netlas: {hosts} hosts indexed, "
-                  f"{h_ips} historical IPs, "
-                  f"{certs} certificates{Style.RESET_ALL}")
+            netlas = result.get("netlas", {})
+            if not netlas.get("skipped"):
+                hosts = len(netlas.get("cloud_hosts", []))
+                h_ips = len(netlas.get("historical_ips", []))
+                certs = len(netlas.get("certificates", []))
+                print(f"  {Fore.BLUE}[*] Netlas: {hosts} hosts indexed, "
+                      f"{h_ips} historical IPs, "
+                      f"{certs} certificates{Style.RESET_ALL}")
 
-        takeovers = [t for t in result.get("takeover_risks", [])
-                     if t.get("confirmed")]
-        if takeovers:
-            print(f"  {Fore.RED}[!] {len(takeovers)} confirmed subdomain "
-                  f"takeover(s) found{Style.RESET_ALL}")
+            takeovers = [t for t in result.get("takeover_risks", [])
+                         if t.get("confirmed")]
+            if takeovers:
+                print(f"  {Fore.RED}[!] {len(takeovers)} confirmed subdomain "
+                      f"takeover(s) found{Style.RESET_ALL}")
 
-        repos = result.get("github_repos", [])
-        leaked = [r for r in repos if r.get("sensitive_files_found")]
-        if repos:
-            print(f"  {Fore.BLUE}[*] GitHub: {len(repos)} public repos"
-                  + (f", {Fore.RED}{len(leaked)} with leaked files"
-                     if leaked else "")
-                  + f"{Style.RESET_ALL}")
+            repos = result.get("github_repos", [])
+            leaked = [r for r in repos if r.get("sensitive_files_found")]
+            if repos:
+                print(f"  {Fore.BLUE}[*] GitHub: {len(repos)} public repos"
+                      + (f", {Fore.RED}{len(leaked)} with leaked files"
+                         if leaked else "")
+                      + f"{Style.RESET_ALL}")
 
-        print(f"  {Fore.CYAN}{'─'*55}{Style.RESET_ALL}\n")
+            print(f"  {Fore.CYAN}{'-'*55}{Style.RESET_ALL}\n")
+        except Exception:
+            pass

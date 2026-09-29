@@ -127,24 +127,31 @@ class SubdomainModule:
         self.verbose = config.get("verbose", False)
         self.wordlist_path = config.get("wordlist", None)
         self.resolver = dns.resolver.Resolver()
-        self.resolver.timeout = self.timeout
-        self.resolver.lifetime = self.timeout * 2
+        self.resolver.timeout = 2.0
+        self.resolver.lifetime = 4.0
+        try:
+            self.resolver.nameservers = ["1.1.1.1", "8.8.8.8", "8.8.4.4"]
+        except Exception:
+            pass
         self._lock = threading.Lock()
-        self._found = {}  # subdomain → details
+        self._found = {}  # subdomain -> details
 
     def run(self) -> list:
-        print(f"  {Fore.BLUE}[*] Starting subdomain enumeration...{Style.RESET_ALL}")
+        print(f"  {Fore.BLUE}[*] Starting subdomain enumeration for {self.domain}...{Style.RESET_ALL}")
 
-        # Method 1: Certificate Transparency (crt.sh)
+        # Method 1: HackerTarget passive DNS (high reliability fallback)
+        self._hackertarget_enum()
+
+        # Method 2: Certificate Transparency (crt.sh)
         self._crtsh_enum()
 
-        # Method 2: Sublist3r passive OSINT
+        # Method 3: Sublist3r passive OSINT (with safety timeout)
         self._sublist3r_enum()
 
-        # Method 3: DNS brute force
+        # Method 4: DNS brute force
         self._dns_bruteforce()
 
-        # Method 4: Check for takeover vulnerabilities
+        # Method 5: Check for takeover vulnerabilities
         self._check_takeover()
 
         # Deduplicate and sort
@@ -156,12 +163,6 @@ class SubdomainModule:
                         retries: int = 1, backoff: float = 1.5):
         """
         GET a URL with one automatic retry on timeout/connection failure.
-
-        Third-party services like crt.sh occasionally time out under load —
-        a single retry after a short backoff clears most of these transient
-        failures without slowing down the common case (first attempt
-        succeeds) or masking a genuinely dead service (still raises after
-        the retry is exhausted).
         """
         last_exc = None
         for attempt in range(retries + 1):
@@ -178,15 +179,39 @@ class SubdomainModule:
                     continue
                 raise last_exc
 
+    def _hackertarget_enum(self):
+        """Query HackerTarget passive DNS search."""
+        print(f"  {Fore.BLUE}[*] Querying HackerTarget passive DNS...{Style.RESET_ALL}")
+        try:
+            url = f"https://api.hackertarget.com/hostsearch/?q={self.domain}"
+            resp = self._get_with_retry(
+                url, timeout=8, headers={"User-Agent": "PhantomRecon/2.0"}
+            )
+            if resp and resp.status_code == 200 and "error" not in resp.text.lower():
+                count = 0
+                for line in resp.text.splitlines():
+                    parts = line.strip().split(",")
+                    if parts:
+                        sub = parts[0].strip().lower().lstrip("*.")
+                        ip = parts[1].strip() if len(parts) > 1 else None
+                        if sub.endswith(f".{self.domain}") or sub == self.domain:
+                            self._add_subdomain(sub, source="hackertarget", ips=[ip] if ip else [])
+                            count += 1
+                if count:
+                    print(f"  {Fore.GREEN}[+] HackerTarget: {count} subdomains found{Style.RESET_ALL}")
+        except Exception as e:
+            if self.verbose:
+                print(f"  {Fore.YELLOW}[!] HackerTarget passive search skipped: {e}{Style.RESET_ALL}")
+
     def _crtsh_enum(self):
         """Query Certificate Transparency logs via crt.sh API."""
         print(f"  {Fore.BLUE}[*] Querying Certificate Transparency logs (crt.sh)...{Style.RESET_ALL}")
         try:
             url = f"https://crt.sh/?q=%.{self.domain}&output=json"
             resp = self._get_with_retry(
-                url, timeout=15, headers={"User-Agent": "PhantomRecon/2.0"}
+                url, timeout=12, headers={"User-Agent": "PhantomRecon/2.0"}
             )
-            if resp.status_code == 200:
+            if resp and resp.status_code == 200:
                 data = resp.json()
                 subs = set()
                 for entry in data:
@@ -201,19 +226,11 @@ class SubdomainModule:
 
                 print(f"  {Fore.GREEN}[+] crt.sh: {len(subs)} subdomains found{Style.RESET_ALL}")
         except Exception as e:
-            print(f"  {Fore.YELLOW}[!] crt.sh query failed after retry: {e}{Style.RESET_ALL}")
+            print(f"  {Fore.YELLOW}[!] crt.sh query unavailable (upstream service limitation): {e}{Style.RESET_ALL}")
 
     def _sublist3r_enum(self):
         """
-        Run Sublist3r for passive subdomain enumeration.
-
-        NOTE: Sublist3r is an unmaintained library. Some of its search
-        engines (DNSDumpster) changed their HTML structure in 2024, causing
-        an IndexError inside a background thread:
-            token = csrf_regex.findall(resp)[0]  → IndexError
-        This thread crash prints to stderr but does NOT crash the main scan.
-        The fix: suppress stderr during the call, check return value safely,
-        and continue — crt.sh and DNS brute force cover what Sublist3r misses.
+        Run Sublist3r for passive subdomain enumeration with strict timeout.
         """
         if not SUBLIST3R_AVAILABLE:
             print(f"  {Fore.YELLOW}[!] Sublist3r not available, skipping{Style.RESET_ALL}")
@@ -222,33 +239,36 @@ class SubdomainModule:
         print(f"  {Fore.BLUE}[*] Running Sublist3r passive OSINT...{Style.RESET_ALL}")
 
         import io, sys
+        from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
-        old_stdout = sys.stdout
-        old_stderr = sys.stderr
         subs = []
 
+        def _run_sublist3r():
+            old_stdout = sys.stdout
+            old_stderr = sys.stderr
+            try:
+                sys.stdout = io.StringIO()
+                sys.stderr = io.StringIO()
+                result = sublist3r.main(
+                    self.domain, 10, savefile=None, ports=None,
+                    silent=True, verbose=False,
+                    enable_bruteforce=False, engines=None
+                )
+                return result if isinstance(result, list) else []
+            finally:
+                sys.stdout = old_stdout
+                sys.stderr = old_stderr
+
         try:
-            # Suppress both stdout AND stderr — Sublist3r threads write
-            # IndexError tracebacks to stderr which pollute terminal output
-            sys.stdout = io.StringIO()
-            sys.stderr = io.StringIO()
-
-            result = sublist3r.main(
-                self.domain, 10, savefile=None, ports=None,
-                silent=True, verbose=False,
-                enable_bruteforce=False, engines=None
-            )
-            # result may be None if all engines fail — treat as empty list
-            subs = result if isinstance(result, list) else []
-
-        except Exception as e:
-            # Catch any synchronous exceptions (thread errors are already suppressed)
-            pass
-
-        finally:
-            # ALWAYS restore stdout/stderr even if an exception occurred
-            sys.stdout = old_stdout
-            sys.stderr = old_stderr
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(_run_sublist3r)
+                try:
+                    subs = future.result(timeout=15)
+                except TimeoutError:
+                    print(f"  {Fore.YELLOW}[!] Sublist3r timed out after 15s (search engine throttle) -- continuing{Style.RESET_ALL}")
+                    subs = []
+        except Exception:
+            subs = []
 
         if subs:
             for sub in subs:
@@ -257,8 +277,7 @@ class SubdomainModule:
                     self._add_subdomain(sub, source="sublist3r")
             print(f"  {Fore.GREEN}[+] Sublist3r: {len(subs)} subdomains found{Style.RESET_ALL}")
         else:
-            print(f"  {Fore.YELLOW}[!] Sublist3r: no results (some engines unavailable — ")
-            print(f"      crt.sh and DNS brute force will cover this){Style.RESET_ALL}")
+            print(f"  {Fore.YELLOW}[!] Sublist3r: no new results (handled by passive & DNS brute force){Style.RESET_ALL}")
 
     def _dns_bruteforce(self):
         """Brute-force subdomains using wordlist + concurrent DNS resolution."""

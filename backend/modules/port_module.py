@@ -102,19 +102,22 @@ class PortModule:
             print(f"  {Fore.GREEN}[+] {ip}: {open_count}/{len(TOP_PORTS)} ports open{Style.RESET_ALL}")
             all_results.extend(results)
 
-        # Print open ports table
-        open_ports = [r for r in all_results if r["state"] == "open"]
-        if open_ports:
-            print(f"\n  {Fore.YELLOW}OPEN PORTS SUMMARY:")
-            print(f"  {'─'*55}")
-            print(f"  {'IP':<18} {'PORT':<8} {'SERVICE':<20} {'BANNER':<20}")
-            print(f"  {'─'*55}")
-            for port_info in sorted(open_ports, key=lambda x: x["port"]):
-                banner_short = (port_info.get("banner") or "")[:20]
-                print(f"  {Fore.GREEN}{port_info['ip']:<18} "
-                      f"{port_info['port']:<8} "
-                      f"{port_info['service']:<20} "
-                      f"{banner_short}{Style.RESET_ALL}")
+        # Print open ports table safely (without crashing on Windows stdout encoding)
+        try:
+            open_ports = [r for r in all_results if r["state"] == "open"]
+            if open_ports:
+                print(f"\n  {Fore.YELLOW}OPEN PORTS SUMMARY:")
+                print(f"  {'-'*55}")
+                print(f"  {'IP':<18} {'PORT':<8} {'SERVICE':<20} {'BANNER':<20}")
+                print(f"  {'-'*55}")
+                for port_info in sorted(open_ports, key=lambda x: x["port"]):
+                    banner_short = (port_info.get("banner") or "")[:20]
+                    print(f"  {Fore.GREEN}{port_info['ip']:<18} "
+                          f"{port_info['port']:<8} "
+                          f"{port_info['service']:<20} "
+                          f"{banner_short}{Style.RESET_ALL}")
+        except Exception:
+            pass
 
         return all_results
 
