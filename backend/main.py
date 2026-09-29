@@ -323,33 +323,35 @@ async def _run_real_scan(scan_id: str, target: str, selected_modules: List[str],
     }
 
     module_map = [
-        ("whois", "WHOIS Lookup & Registrar Intelligence", WhoisModule),
-        ("dns", "DNS Enumeration & Record Analysis", DNSModule),
-        ("subdomain", "Subdomain Enumeration (Sublist3r + DNS Brute Force)", SubdomainModule),
-        ("email", "Email Harvesting & Pattern Discovery", EmailModule),
-        ("shodan", "Shodan API: Exposed Services & Vulnerabilities", ShodanModule),
-        ("tech", "Technology Fingerprinting", TechModule),
-        ("ssl", "SSL/TLS Certificate Analysis", SSLModule),
-        ("osint", "OSINT Aggregation (VirusTotal + Wayback + GitHub)", OsintModule),
-        ("cloud", "Cloud Asset Discovery (S3 / Azure / GCP / GitHub)", CloudModule),
+        ("whois", "WHOIS Lookup & Registrar Intelligence", WhoisModule, "whois"),
+        ("dns", "DNS Enumeration & Record Analysis", DNSModule, "dns"),
+        ("subdomain", "Subdomain Enumeration (Sublist3r + DNS Brute Force)", SubdomainModule, "subdomains"),
+        ("email", "Email Harvesting & Pattern Discovery", EmailModule, "emails"),
+        ("shodan", "Shodan API: Exposed Services & Vulnerabilities", ShodanModule, "shodan"),
+        ("tech", "Technology Fingerprinting", TechModule, "technologies"),
+        ("ssl", "SSL/TLS Certificate Analysis", SSLModule, "ssl"),
+        ("osint", "OSINT Aggregation (VirusTotal + Wayback + GitHub)", OsintModule, "osint"),
+        ("cloud", "Cloud Asset Discovery (S3 / Azure / GCP / GitHub)", CloudModule, "cloud"),
     ]
     if "port" in selected_modules and not passive_only:
-        module_map.append(("port", "Port Scanning (Top Ports)", PortModule))
+        module_map.append(("port", "Port Scanning (Top Ports)", PortModule, "ports"))
 
     active_modules = [m for m in module_map if m[0] in selected_modules]
     total = len(active_modules)
 
-    for idx, (mod_key, title, ModClass) in enumerate(active_modules, start=1):
+    for idx, (mod_key, title, ModClass, res_key) in enumerate(active_modules, start=1):
         progress = int((idx / (total + 1)) * 90)
         await stream_log(scan_id, "phase", f"PHASE {idx}/{total}: {title.upper()}", mod_key.upper(), progress)
         try:
             # Run blocking module code in executor thread to keep event loop responsive
             mod_instance = ModClass(config)
             mod_result = await asyncio.to_thread(mod_instance.run)
-            results[mod_key] = mod_result
+            results[res_key] = mod_result
+            results[mod_key] = mod_result  # Keep singular alias as well
             await stream_log(scan_id, "success", f"Completed {title}", mod_key.upper(), progress)
         except Exception as err:
             err_str = f"Error in {title}: {str(err)}"
+            results[res_key] = {"error": err_str}
             results[mod_key] = {"error": err_str}
             await stream_log(scan_id, "warning", err_str, mod_key.upper(), progress)
 
@@ -375,10 +377,11 @@ async def _run_real_scan(scan_id: str, target: str, selected_modules: List[str],
 
 def _calculate_risk(results: dict) -> dict:
     """Computes comprehensive risk score and identifies key risk factors."""
-    subdomains = results.get("subdomains", [])
-    emails = [e for e in results.get("emails", []) if isinstance(e, dict) and "email" in e]
+    subdomains = results.get("subdomains") or results.get("subdomain") or []
+    raw_emails = results.get("emails") or results.get("email") or []
+    emails = [e for e in raw_emails if isinstance(e, dict) and "email" in e]
     shodan = results.get("shodan", {})
-    ports = results.get("ports", [])
+    ports = results.get("ports") or results.get("port") or []
     ssl = results.get("ssl", {})
     cloud = results.get("cloud", {})
     osint = results.get("osint", {})

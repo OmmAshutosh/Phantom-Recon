@@ -37,9 +37,10 @@ from colorama import Fore, Style
 TOP_PORTS = [
     21, 22, 23, 25, 53, 80, 110, 111, 135, 139, 143,
     443, 445, 465, 587, 993, 995, 1080, 1433, 1521,
-    2375, 2376, 3306, 3389, 4443, 5432, 5900, 5985, 5986,
-    6379, 7001, 7443, 8080, 8081, 8443, 8888, 9000,
-    9200, 9300, 10000, 27017, 28017, 50070,
+    2000, 2375, 2376, 3000, 3306, 3389, 4443, 5000, 5060,
+    5432, 5900, 5985, 5986, 6379, 7001, 7443, 8000, 8008,
+    8080, 8081, 8443, 8880, 8888, 9000, 9200, 9300, 9929,
+    10000, 10443, 27017, 28017, 31337, 50070,
 ]
 
 SERVICE_PROBES = {
@@ -59,14 +60,17 @@ PORT_SERVICE_MAP = {
     80: "HTTP", 110: "POP3", 111: "RPC", 135: "MSRPC",
     139: "NetBIOS-SSN", 143: "IMAP", 443: "HTTPS", 445: "SMB",
     465: "SMTPS", 587: "SMTP-Submission", 993: "IMAPS", 995: "POP3S",
-    1080: "SOCKS", 1433: "MSSQL", 1521: "Oracle-DB", 2375: "Docker-API",
-    2376: "Docker-TLS", 3306: "MySQL", 3389: "RDP", 4443: "HTTPS-Alt",
-    5432: "PostgreSQL", 5900: "VNC", 5985: "WinRM-HTTP",
+    1080: "SOCKS", 1433: "MSSQL", 1521: "Oracle-DB", 2000: "Cisco-SCCP",
+    2375: "Docker-API", 2376: "Docker-TLS", 3000: "NodeJS/Dev",
+    3306: "MySQL", 3389: "RDP", 4443: "HTTPS-Alt", 5000: "Flask/UPnP",
+    5060: "SIP", 5432: "PostgreSQL", 5900: "VNC", 5985: "WinRM-HTTP",
     5986: "WinRM-HTTPS", 6379: "Redis", 7001: "WebLogic",
-    7443: "HTTPS-Alt2", 8080: "HTTP-Alt", 8081: "HTTP-Alt2",
-    8443: "HTTPS-Alt3", 8888: "Jupyter/Alt", 9000: "SonarQube/PHP-FPM",
+    7443: "HTTPS-Alt2", 8000: "HTTP-Alt", 8008: "HTTP-Alt",
+    8080: "HTTP-Alt", 8081: "HTTP-Alt2", 8443: "HTTPS-Alt3",
+    8880: "HTTP-Alt", 8888: "Jupyter/Alt", 9000: "SonarQube/PHP-FPM",
     9200: "Elasticsearch", 9300: "Elasticsearch-Cluster",
-    10000: "Webmin", 27017: "MongoDB", 28017: "MongoDB-HTTP",
+    9929: "NPing-Echo", 10000: "Webmin", 10443: "HTTPS-Alt",
+    27017: "MongoDB", 28017: "MongoDB-HTTP", 31337: "Elite",
     50070: "Hadoop-HDFS",
 }
 

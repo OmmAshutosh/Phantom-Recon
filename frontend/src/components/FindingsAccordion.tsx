@@ -27,13 +27,13 @@ export const FindingsAccordion: React.FC<FindingsAccordionProps> = ({ results })
 
   const whois = results?.whois || {};
   const dns = results?.dns || {};
-  const subdomains = results?.subdomains || [];
-  const rawEmails = results?.emails || [];
-  const emails = rawEmails.filter((e: any) => typeof e === 'object' && e?.email);
-  const emailPatterns = rawEmails.find((e: any) => e?._meta === 'email_patterns')?.patterns || [];
-  const tech = results?.technologies || {};
+  const subdomains = results?.subdomains || results?.subdomain || [];
+  const rawEmails = results?.emails || results?.email || [];
+  const emails = Array.isArray(rawEmails) ? rawEmails.filter((e: any) => typeof e === 'object' && e?.email) : [];
+  const emailPatterns = Array.isArray(rawEmails) ? (rawEmails.find((e: any) => e?._meta === 'email_patterns')?.patterns || []) : [];
+  const tech = results?.technologies || results?.tech || {};
   const ssl = results?.ssl || {};
-  const ports = results?.ports || [];
+  const ports = Array.isArray(results?.ports) ? results.ports : (Array.isArray(results?.port) ? results.port : []);
   const cloud = results?.cloud || {};
   const osint = results?.osint || {};
   const shodan = results?.shodan || {};
