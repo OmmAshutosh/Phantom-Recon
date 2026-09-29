@@ -14,14 +14,37 @@ export function getWebSocketUrl(scanId: string): string {
 }
 
 export async function initiateScan(request: ScanRequest): Promise<{ scan_id: string; target: string; status: string }> {
-  const resp = await fetch(`${API_BASE}/scan`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-  });
+  let resp: Response;
+  try {
+    resp = await fetch(`${API_BASE}/scan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+  } catch (networkErr: any) {
+    if (window.location.hostname !== 'localhost' && !import.meta.env.VITE_API_URL) {
+      throw new Error(
+        'Backend connection failed: VITE_API_URL is missing in your frontend deployment. Add VITE_API_URL in your Vercel/Netlify Environment Variables pointing to your Railway backend URL.'
+      );
+    }
+    throw new Error(
+      `Cannot connect to backend server at ${API_BASE}. If running locally, start the backend with: uvicorn main:app --port 8000`
+    );
+  }
 
   if (!resp.ok) {
-    const errorData = await resp.json().catch(() => ({ detail: 'Network error submitting scan.' }));
+    if (resp.status === 404) {
+      throw new Error(
+        `Backend endpoint not found (404) at ${API_BASE}/scan. Verify that VITE_API_URL is set to your backend server.`
+      );
+    }
+    if (resp.status === 502 || resp.status === 503) {
+      throw new Error('Backend server is starting up or temporarily unavailable (502/503). Please check your Railway deployment.');
+    }
+    if (resp.status === 429) {
+      throw new Error('Rate limit exceeded: Maximum 20 scans per hour per IP.');
+    }
+    const errorData = await resp.json().catch(() => ({ detail: `Server error (HTTP ${resp.status})` }));
     const msg = Array.isArray(errorData.detail)
       ? errorData.detail.map((d: any) => d.msg || d.message).join('; ')
       : errorData.detail || 'Failed to initiate scan.';
