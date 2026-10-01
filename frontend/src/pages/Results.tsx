@@ -87,6 +87,22 @@ export const Results: React.FC<ResultsProps> = ({ scanId, onBackToScanner }) => 
   const summary = scan.summary || {};
   const riskFactors = summary.risk_factors || [];
 
+  // Derive counts with fallback to results array in case summary was stored with older schema
+  const rawPorts = scan.results?.ports || scan.results?.port || [];
+  const openPortsCount = (typeof summary.open_ports === 'number' && summary.open_ports > 0)
+    ? summary.open_ports
+    : (Array.isArray(rawPorts) ? rawPorts.filter((p: any) => p.state === 'open').length : 0);
+
+  const rawSubdomains = scan.results?.subdomains || scan.results?.subdomain || [];
+  const subdomainsCount = (typeof summary.subdomains_found === 'number' && summary.subdomains_found > 0)
+    ? summary.subdomains_found
+    : (Array.isArray(rawSubdomains) ? rawSubdomains.length : 0);
+
+  const rawEmails = scan.results?.emails || scan.results?.email || [];
+  const emailsCount = (typeof summary.emails_found === 'number' && summary.emails_found > 0)
+    ? summary.emails_found
+    : (Array.isArray(rawEmails) ? rawEmails.filter((e: any) => typeof e === 'object' && e?.email).length : 0);
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-16">
       {/* Header Bar - Mobile responsive flex */}
@@ -166,21 +182,21 @@ export const Results: React.FC<ResultsProps> = ({ scanId, onBackToScanner }) => 
         <div className="md:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3">
           <StatCard
             title="Subdomains Discovered"
-            value={summary.subdomains_found ?? 0}
+            value={subdomainsCount}
             icon={Globe}
             subtitle="Aggregated OSINT & DNS"
             variant="mint"
           />
           <StatCard
             title="Open Public Ports"
-            value={summary.open_ports ?? 0}
+            value={openPortsCount}
             icon={Server}
             subtitle="Direct socket probes"
-            variant={summary.open_ports > 0 ? 'warning' : 'default'}
+            variant={openPortsCount > 0 ? 'warning' : 'default'}
           />
           <StatCard
             title="Harvested Emails"
-            value={summary.emails_found ?? 0}
+            value={emailsCount}
             icon={Mail}
             subtitle="Corporate patterns & OSINT"
             variant="default"

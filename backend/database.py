@@ -163,6 +163,28 @@ async def get_scan(scan_id: str) -> Optional[Dict[str, Any]]:
         data["consent_given"] = bool(data.get("consent_given"))
         data["passive_only"] = bool(data.get("passive_only"))
         data["demo_mode"] = bool(data.get("demo_mode"))
+
+        # Backward compatibility healing for legacy scans
+        res = data.get("results")
+        if isinstance(res, dict):
+            if "port" in res and ("ports" not in res or not res["ports"]):
+                res["ports"] = res["port"]
+            if "subdomain" in res and ("subdomains" not in res or not res["subdomains"]):
+                res["subdomains"] = res["subdomain"]
+            if "tech" in res and ("technologies" not in res or not res["technologies"]):
+                res["technologies"] = res["tech"]
+            if "email" in res and ("emails" not in res or not res["emails"]):
+                res["emails"] = res["email"]
+            data["results"] = res
+
+            summ = data.get("summary")
+            if isinstance(summ, dict):
+                if not summ.get("open_ports") and isinstance(res.get("ports"), list):
+                    summ["open_ports"] = len([p for p in res["ports"] if isinstance(p, dict) and p.get("state") == "open"])
+                if not summ.get("subdomains_found") and isinstance(res.get("subdomains"), list):
+                    summ["subdomains_found"] = len(res["subdomains"])
+                data["summary"] = summ
+
         return data
 
 async def get_scan_logs(scan_id: str) -> List[Dict[str, Any]]:
