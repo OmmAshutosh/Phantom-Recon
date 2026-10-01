@@ -58,6 +58,7 @@ logs/
 output/*.json
 backend/output/*.json
 *.pdf
+!PHANTOM_RECON_ARCHITECTURE_AND_COMPARISON_GUIDE.pdf
 *.html
 !frontend/index.html
 !package.json
