@@ -34,6 +34,11 @@ export const FindingsAccordion: React.FC<FindingsAccordionProps> = ({ results })
   const tech = results?.technologies || results?.tech || {};
   const ssl = results?.ssl || {};
   const ports = Array.isArray(results?.ports) ? results.ports : (Array.isArray(results?.port) ? results.port : []);
+  const [showAllPorts, setShowAllPorts] = useState(false);
+  const openPortsList = ports.filter((p: any) => p.state === 'open');
+  const otherPortsList = ports.filter((p: any) => p.state !== 'open');
+  const sortedPorts = [...openPortsList, ...otherPortsList];
+  const displayedPorts = showAllPorts || openPortsList.length === 0 ? sortedPorts : openPortsList;
   const cloud = results?.cloud || {};
   const osint = results?.osint || {};
   const shodan = results?.shodan || {};
@@ -137,7 +142,7 @@ export const FindingsAccordion: React.FC<FindingsAccordionProps> = ({ results })
               <h4 className="font-mono text-sm font-semibold text-slate-100 flex items-center space-x-2">
                 <span>Port Probing & Service Fingerprinting</span>
                 <span className="px-2 py-0.5 rounded-full text-xs bg-slate-800 text-emerald-400 font-mono">
-                  {ports.filter((p: any) => p.state === 'open').length} Open
+                  {openPortsList.length} Open
                 </span>
               </h4>
               <p className="text-xs text-slate-400">Top ports socket probing & banner acquisition</p>
@@ -151,19 +156,33 @@ export const FindingsAccordion: React.FC<FindingsAccordionProps> = ({ results })
             {ports.length === 0 ? (
               <p className="text-xs text-slate-400 font-mono italic">No ports tested or open.</p>
             ) : (
-              <div className="overflow-x-auto -mx-4 sm:mx-0">
-                <table className="w-full text-left text-xs font-mono min-w-[500px]">
-                  <thead>
-                    <tr className="border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider">
-                      <th className="pb-2 px-3">Port</th>
-                      <th className="pb-2 px-3">Service</th>
-                      <th className="pb-2 px-3">State</th>
-                      <th className="pb-2 px-3">Banner / Signature</th>
-                      <th className="pb-2 px-3">Risk</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60">
-                    {ports.map((p: any, idx: number) => (
+              <div>
+                <div className="flex items-center justify-between pb-3 mb-2 border-b border-slate-800/80">
+                  <div className="text-xs font-mono text-slate-300">
+                    <span className="font-bold text-emerald-400">{openPortsList.length}</span> open ports identified out of {ports.length} tested
+                  </div>
+                  {ports.length > openPortsList.length && (
+                    <button
+                      onClick={() => setShowAllPorts(!showAllPorts)}
+                      className="text-[11px] font-mono px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700"
+                    >
+                      {showAllPorts ? `Show Open Only (${openPortsList.length})` : `Show All Tested (${ports.length})`}
+                    </button>
+                  )}
+                </div>
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
+                  <table className="w-full text-left text-xs font-mono min-w-[500px]">
+                    <thead>
+                      <tr className="border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider">
+                        <th className="pb-2 px-3">Port</th>
+                        <th className="pb-2 px-3">Service</th>
+                        <th className="pb-2 px-3">State</th>
+                        <th className="pb-2 px-3">Banner / Signature</th>
+                        <th className="pb-2 px-3">Risk</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {displayedPorts.map((p: any, idx: number) => (
                       <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
                         <td className="py-2.5 px-3 font-bold text-emerald-400">
                           {p.port}
@@ -197,7 +216,8 @@ export const FindingsAccordion: React.FC<FindingsAccordionProps> = ({ results })
                   </tbody>
                 </table>
               </div>
-            )}
+            </div>
+          )}
           </div>
         )}
       </div>

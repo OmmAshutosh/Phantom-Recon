@@ -87,9 +87,9 @@ class PortModule:
     def run(self) -> list:
         print(f"  {Fore.BLUE}[*] Resolving target IP addresses...{Style.RESET_ALL}")
 
-        # Resolve target IPs
+        # Resolve target IPs (force IPv4 for standard TCP socket probing)
         try:
-            target_ips = list(set(r[4][0] for r in socket.getaddrinfo(self.domain, None)))
+            target_ips = list(set(r[4][0] for r in socket.getaddrinfo(self.domain, None, socket.AF_INET)))
         except Exception as e:
             print(f"  {Fore.RED}[-] DNS resolution failed: {e}{Style.RESET_ALL}")
             return []
@@ -141,8 +141,9 @@ class PortModule:
 
     def _scan_port(self, ip: str, port: int) -> dict:
         """Attempt TCP connection to a single port."""
+        family = socket.AF_INET6 if ":" in ip else socket.AF_INET
         try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            with socket.socket(family, socket.SOCK_STREAM) as s:
                 s.settimeout(self.timeout)
                 code = s.connect_ex((ip, port))
                 if code == 0:
@@ -162,17 +163,18 @@ class PortModule:
                     return {"ip": ip, "port": port, "state": "closed",
                             "service": PORT_SERVICE_MAP.get(port, "unknown")}
         except Exception:
-            return {"ip": ip, "port": port, "state": "error",
+            return {"ip": ip, "port": port, "state": "closed",
                     "service": PORT_SERVICE_MAP.get(port, "unknown")}
 
     def _grab_banner(self, ip: str, port: int, timeout: float = 2.0) -> str | None:
         """Try to grab service banner."""
+        family = socket.AF_INET6 if ":" in ip else socket.AF_INET
         try:
             probe = SERVICE_PROBES.get(port, b"")
             if isinstance(probe, bytes) and b"{host}" in probe:
                 probe = probe.replace(b"{host}", self.domain.encode())
 
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            with socket.socket(family, socket.SOCK_STREAM) as s:
                 s.settimeout(timeout)
                 s.connect((ip, port))
                 if probe:
